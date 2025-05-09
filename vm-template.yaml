@@ -1,0 +1,50 @@
+# vm-template.yaml
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  name: __VM_NAME__
+  labels:
+    app: __VM_NAME__
+spec:
+  running: true
+  template:
+    metadata:
+      labels:
+        kubevirt.io/vm: __VM_NAME__
+    spec:
+      architecture: arm64
+      domain:
+        cpu:
+          cores: 1
+        memory:
+          guest: 256Mi
+        devices:
+          disks:
+          - name: containerdisk
+            disk:
+              bus: virtio
+          - name: cloudinitdisk
+            disk:
+              bus: virtio
+          interfaces:
+          - name: default
+            masquerade: {}
+          rng: {}
+        resources:
+          requests:
+            memory: 256Mi
+      networks:
+      - name: default
+        pod: {}
+      volumes:
+      - name: containerdisk
+        containerDisk:
+          image: __VM_IMAGE__
+      - name: cloudinitdisk
+        cloudInitNoCloud:
+          userData: |
+            #!/bin/sh
+            echo "Hello from OpenTofu-provisioned KubeVirt ARM64 VM on Kind!"
+            echo "Hostname: $(hostname)"
+            echo "Date: $(date)"
+            echo "Architecture: $(uname -m)"
