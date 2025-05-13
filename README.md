@@ -2,7 +2,7 @@
 
 This project uses OpenTofu to provision a local Kind Kubernetes cluster. It leverages Rancher Desktop configured with the **`moby` (Docker)** container engine. This will setup a **KubeVirt** environment to PoC the capability of VM management under K8S.
 
-The setup utilizes OpenTofu's `null_resource` with `local-exec` provisioners to execute `kind` CLI commands for reliable cluster creation and `clusterctl init` for CAPI initialization.
+The setup utilizes OpenTofu's `null_resource` with `local-exec` provisioners to execute `kind` CLI commands for reliable cluster creation and `virtctl init` for VM support.
 
 ## Prerequisites
 
@@ -47,7 +47,6 @@ Ensure the following tools are installed on your macOS system **and accessible i
     clusterctl version
     which clusterctl # Should output a path like /opt/homebrew/bin/clusterctl
     ```
-    *   **If `which clusterctl` fails after installation, or if `tofu apply` fails with `clusterctl: command not found`, ensure your shell's `PATH` includes the Homebrew bin directory. You might need to update `~/.zshrc` or `~/.bash_profile`. See Homebrew documentation or run `brew doctor`. As a workaround, you can specify the full path to `clusterctl` (found via `which clusterctl`) directly in the `main.tf` `capi_init` provisioner.**
 
 7.  **KubeVirt:** (K8S VM support)
     *   `virtctl` is **required** as it's called directly by the OpenTofu configuration, via provisioners.
