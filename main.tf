@@ -145,8 +145,11 @@ resource "null_resource" "kubevirt_installation" {
 
 # Deploy a sample KubeVirt Virtual Machine
 resource "null_resource" "kubevirt_sample_vm" {
-  depends_on = [null_resource.kubevirt_installation]
-
+  #depends_on = [null_resource.kubevirt_installation]
+  depends_on = [
+    # null_resource.kubevirt_installation, # This dependency is implicit via kubevirt_patch_use_emulation
+    null_resource.kubevirt_patch_use_emulation # Ensure patch is applied before VM creation
+  ]
   triggers = {
     kubevirt_ready_id = null_resource.kubevirt_installation.id
     cluster_name      = null_resource.kind_cluster_manager.triggers.cluster_name
@@ -203,6 +206,47 @@ resource "null_resource" "kubevirt_sample_vm" {
       echo "Sample KubeVirt ARM64 VM '${self.triggers.vm_name}' is Running."
       echo "To access its console (if ./virtctl is available or virtctl is in your PATH):"
       echo "KUBECONFIG=${path.module}/kubeconfig-${self.triggers.cluster_name}.yaml ./virtctl console ${self.triggers.vm_name}"
+    EOT
+    interpreter = ["bash", "-c"]
+  }
+}
+
+# Patch KubeVirt CR to enable useEmulation for scheduling workaround on ARM64 Kind
+resource "null_resource" "kubevirt_patch_use_emulation" {
+  depends_on = [null_resource.kubevirt_installation]
+
+  triggers = {
+    # Re-run if KubeVirt installation ID changes or cluster name changes
+    kubevirt_installation_id = null_resource.kubevirt_installation.id
+    cluster_name             = null_resource.kind_cluster_manager.triggers.cluster_name
+    # Add a trigger that changes if we decide to toggle this, e.g., a variable
+    # For now, just depends on installation.
+  }
+
+  provisioner "local-exec" {
+    command = <<EOT
+      set -e
+      set -x
+      export KUBECONFIG="${path.module}/kubeconfig-${self.triggers.cluster_name}.yaml"
+      echo "Attempting to patch KubeVirt CR 'kubevirt' in namespace 'kubevirt' to set useEmulation=true..."
+      
+      # Check if already patched to avoid unnecessary patching attempts if script re-runs
+      CURRENT_EMULATION_SETTING=$(kubectl get KubeVirt kubevirt -n kubevirt -o jsonpath='{.spec.configuration.developerConfiguration.useEmulation}' || echo "notset")
+
+      if [ "$CURRENT_EMULATION_SETTING" = "true" ]; then
+        echo "useEmulation is already set to true. Skipping patch."
+      else
+        echo "Patching KubeVirt CR to set useEmulation=true..."
+        kubectl patch KubeVirt kubevirt -n kubevirt --type=merge -p \
+          '{"spec":{"configuration":{"developerConfiguration":{"useEmulation":true}}}}'
+        echo "KubeVirt CR patched."
+      fi
+      
+      # Verify the patch
+      echo "Verifying useEmulation setting..."
+      kubectl get KubeVirt kubevirt -n kubevirt -o jsonpath='{.spec.configuration.developerConfiguration.useEmulation}' | grep -q true || \
+        (echo "ERROR: Failed to verify useEmulation=true patch on KubeVirt CR!" && exit 1)
+      echo "Verified useEmulation is set to true on KubeVirt CR."
     EOT
     interpreter = ["bash", "-c"]
   }

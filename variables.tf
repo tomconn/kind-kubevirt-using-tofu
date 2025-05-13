@@ -11,9 +11,9 @@ variable "kind_node_image" {
 }
 
 variable "kubevirt_version" {
-  description = "KubeVirt version to install (e.g., v1.2.0). Use 'latest' to attempt to fetch the latest."
+  description = "KubeVirt version to install."
   type        = string
-  default     = "v1.5.0" # Or 'latest'
+  default     = "latest"
 }
 
 variable "kubevirt_vm_name" {
